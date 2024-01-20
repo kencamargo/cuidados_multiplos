@@ -99,8 +99,7 @@ bool loadtable(char * fname, sqlite3 *ppDb)
         6 COBRANCA
         7 N_AIH
         8 AIHREF
-        9 AIHREFANO
-        10 FLAG
+        9 FLAG
     */
 
     bool retval = false;
@@ -108,7 +107,8 @@ bool loadtable(char * fname, sqlite3 *ppDb)
     cerr << "Criando tabela e indices" << endl;
 
     const char *init_sql = "drop table if exists aih;"
-                     "create table aih(CNES TEXT,CEP TEXT,MUNIC_RES TEXT,NASC TEXT,DT_INTER TEXT,DT_SAIDA TEXT,COBRANCA TEXT,N_AIH TEXT,AIHREF TEXT,AIHREFANO TEXT,FLAG TEXT);\n"
+                     "create table aih(CNES TEXT,CEP TEXT,MUNIC_RES TEXT,NASC TEXT,"
+                     "DT_INTER TEXT,DT_SAIDA TEXT,COBRANCA TEXT,N_AIH TEXT,AIHREF TEXT,FLAG TEXT);\n"
                      "drop index if exists orderperm;"
                      "create index orderperm on aih(CNES,MUNIC_RES,NASC,DT_INTER);\n"
                      "drop index if exists ordertransf;"
@@ -140,7 +140,7 @@ bool loadtable(char * fname, sqlite3 *ppDb)
         vector<string> filefldnames = split_string(line_in,";");
 
         vector<string> fldnames = split_string("\"CNES\",\"CEP\",\"MUNIC_RES\",\"NASC\",\"DT_INTER\",\"DT_SAIDA\","
-                                               "\"COBRANCA\",\"N_AIH\",\"AIHREF\",\"AIHREFANO\",\"FLAG\"",",");
+                                               "\"COBRANCA\",\"N_AIH\",\"AIHREF\",\"FLAG\"",",");
 
         const char *add_data = "insert into aih"
                         "("
@@ -153,10 +153,9 @@ bool loadtable(char * fname, sqlite3 *ppDb)
                         "COBRANCA,"
                         "N_AIH,"
                         "AIHREF,"
-                        "AIHREFANO,"
                         "FLAG"
                         ") "
-                        "values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?,\"<init>\");";
+                        "values(?, ?, ?, ?, ?, ?, ?, ?, ?, \"<init>\");";
 
         long recs = 0L;
 
@@ -184,7 +183,7 @@ bool loadtable(char * fname, sqlite3 *ppDb)
 
             vector<string> fdata;
 
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < 10; i++)
                 fdata.push_back(string("----"));
 
             for (int i = 0; i < 10; i++)
@@ -204,11 +203,6 @@ bool loadtable(char * fname, sqlite3 *ppDb)
                     int nfldnum = findpos("N_AIH",filefldnames);
                     fdata[8] = field_data[nfldnum];
                 }
-                else if (fdname == "AIHREFANO")
-                {
-                    int nfldno = findpos("DT_INTER",filefldnames);
-                    fdata[9] = field_data[nfldno].substr(0,4);
-                }
                 if (sqlite3_bind_text(ppStmt, (i+1), fdata[i].c_str(), fdata[i].length(), SQLITE_STATIC) != SQLITE_OK)
                     throw "Erro ao adicionar dados (bind).";
             }
@@ -219,7 +213,7 @@ bool loadtable(char * fname, sqlite3 *ppDb)
             // if (recs > 10000) break;
             //
         }
-        cerr << ++recs << endl << "Encerrando carga." << endl;
+        cerr << endl << "Encerrando carga." << endl;
         sqlite3_exec(ppDb, "end transaction;", nullptr, nullptr, nullptr);
         infile.close();
         retval = true;
@@ -246,8 +240,7 @@ bool doperm(sqlite3 *ppDb)
         6 COBRANCA
         7 N_AIH
         8 AIHREF
-        9 AIHREFANO
-        10 FLAG
+        9 FLAG
     */
 
     cerr << "Buscando sequencias." << endl << "Aguarde, ordenando tabela..." << endl;
@@ -266,10 +259,10 @@ bool doperm(sqlite3 *ppDb)
         output << "CNES,CEP,MUNIC_RES,"
                   "NASC,DT_INTER,DT_SAIDA,"
                   "COBRANCA,N_AIH,AIHREF,"
-                  "AIHREFANO,FLAG";
+                  "FLAG";
         output << endl;
 
-        for (int i = 0; i < 11; i++)
+        for (int i = 0; i < 10; i++)
         {
             prevvalues.push_back(string(""));
             curvalues.push_back(string(""));
@@ -281,12 +274,12 @@ bool doperm(sqlite3 *ppDb)
         {
             if (prevvalues[0] == "") // first item
             {
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     prevvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                 {
                     output << "\"" << prevvalues[i] << "\"";
-                    if (i < 11)
+                    if (i < 9)
                         output << ",";
                     else
                         output << endl;
@@ -294,7 +287,7 @@ bool doperm(sqlite3 *ppDb)
             }
             else
             {
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     curvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
                 currec = sqlite3_column_int(ppStmt,11);
                 float dt_inter = julian(curvalues[4]);
@@ -306,22 +299,20 @@ bool doperm(sqlite3 *ppDb)
                     (dt_diff >= 0) && (dt_diff <= 1))
                 {
                     curvalues[8] = prevvalues[8];
-                    curvalues[9] = prevvalues[9];
-                    curvalues[10] = "<seq>";
-                    sqlite3_prepare_v2(ppDb, "update aih set AIHREF = ?, AIHREFANO = ?, FLAG = \"<seq>\" where rowid = ?;", -1, &addstmt, nullptr);
+                    curvalues[9] = "<seq>";
+                    sqlite3_prepare_v2(ppDb, "update aih set AIHREF = ?, FLAG = \"<seq>\" where rowid = ?;", -1, &addstmt, nullptr);
                     sqlite3_bind_text(addstmt, 1, (prevvalues[8].c_str()), prevvalues[8].length(), SQLITE_STATIC); // AIHREF
-                    sqlite3_bind_text(addstmt, 2, (prevvalues[9].c_str()), prevvalues[9].length(), SQLITE_STATIC); // AIHREFANO
-                    sqlite3_bind_int(addstmt, 3, currec);
+                    sqlite3_bind_int(addstmt, 2, currec);
                     sqlite3_step(addstmt);
                     sqlite3_finalize(addstmt);
                 }
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     prevvalues[i] = curvalues[i];
 
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                 {
                     output << "\"" << prevvalues[i] << "\"";
-                    if (i < 10)
+                    if (i < 9)
                         output << ",";
                     else
                         output << endl;
@@ -334,7 +325,7 @@ bool doperm(sqlite3 *ppDb)
 
         sqlite3_exec(ppDb, "end transaction;", nullptr, nullptr, nullptr);
 
-        cerr << ++recs << endl << "Fim da busca." << endl;
+        cerr << endl << "Fim da busca." << endl;
 
         output.close();
 
@@ -348,7 +339,7 @@ bool doperm(sqlite3 *ppDb)
 
 int dotransf(sqlite3 *ppDb)
 {
-    int retval = -1;
+    int retval = 0;
     try {
         sqlite3_stmt *addstmt, *ppStmt;
         //ofstream output;
@@ -368,7 +359,7 @@ int dotransf(sqlite3 *ppDb)
         sqlite3_prepare_v2(ppDb, "select * from aih order by CEP,MUNIC_RES,NASC,DT_INTER;", -1, &ppStmt, nullptr);
 
         if (sqlite3_exec(ppDb, "drop table if exists transf;"
-                                "create table transf(ORIGAIHREF TEXT, AIHREF TEXT, AIHREFANO TEXT, DT_INTER);"
+                                "create table transf(ORIGAIHREF TEXT, AIHREF TEXT, DT_INTER);"
                                 "drop index if exists txtime;"
                                 "create index txtime on transf(DT_INTER);",
                                 nullptr, nullptr, nullptr) != SQLITE_OK)
@@ -378,7 +369,7 @@ int dotransf(sqlite3 *ppDb)
         long recs = 0L;
 
         vector<string> prevvalues, curvalues;
-        for (int i = 0; i < 11; i++)
+        for (int i = 0; i < 10; i++)
         {
             prevvalues.push_back(string("----"));
             curvalues.push_back(string("----"));
@@ -387,11 +378,11 @@ int dotransf(sqlite3 *ppDb)
         while (sqlite3_step(ppStmt) != SQLITE_DONE)
         {
             if (prevvalues[0] == "----")
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     prevvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
             else
             {
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     curvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
                 float dt_inter = julian(curvalues[4]);
                 float dt_saida = julian(prevvalues[5]);
@@ -403,18 +394,17 @@ int dotransf(sqlite3 *ppDb)
                     (prevvalues[6] == "3") && // COBRANCA -> transf
                     (curvalues[8] != prevvalues[8])) // se AIHREF for igual, não precisa mudar
                 {
-                    sqlite3_prepare_v2(ppDb, "insert into transf(ORIGAIHREF,AIHREF,AIHREFANO,DT_INTER) values(?, ?, ?, ?);", -1, &addstmt, nullptr);
+                    sqlite3_prepare_v2(ppDb, "insert into transf(ORIGAIHREF,AIHREF,DT_INTER) values(?, ?, ?);", -1, &addstmt, nullptr);
                     sqlite3_bind_text(addstmt, 1, (curvalues[8].c_str()), curvalues[8].length(), SQLITE_STATIC); // ORIGAIHREF
                     sqlite3_bind_text(addstmt, 2, (prevvalues[8].c_str()), prevvalues[8].length(), SQLITE_STATIC); // AIHREF
-                    sqlite3_bind_text(addstmt, 3, (prevvalues[9].c_str()), prevvalues[9].length(), SQLITE_STATIC); // AIHREFANO
-                    sqlite3_bind_text(addstmt, 4, (prevvalues[4].c_str()), prevvalues[4].length(), SQLITE_STATIC); // DT_INTER
+                    sqlite3_bind_text(addstmt, 3, (prevvalues[4].c_str()), prevvalues[4].length(), SQLITE_STATIC); // DT_INTER
 
                     sqlite3_step(addstmt);
                     sqlite3_finalize(addstmt);
                     // output << curvalues[8] << "," << prevvalues[8] << "," << prevvalues[9] << "," << prevvalues[4] << endl;
                     retval++;
                 }
-                for (int i = 0; i < 11; i++)
+                for (int i = 0; i < 10; i++)
                     prevvalues[i] = curvalues[i];
             }
             cerr << ++recs << '\r';
@@ -427,6 +417,7 @@ int dotransf(sqlite3 *ppDb)
         // output.close();
         cerr << endl << "Fim da busca." << endl;
     } catch (const char *s) {
+        retval = -1;
         cerr << "Erro na busca: " << s << endl;
     };
     return retval;
@@ -443,28 +434,27 @@ bool reconcile(sqlite3 *ppDb)
         long nordem, currec, recs = 0L;
 
         vector<string> prevvalues, curvalues;
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 3; i++)
             prevvalues.push_back(string("----"));
 
         cerr << "Recompondo sequencias." << endl;
 
         while (sqlite3_step(ppStmt) != SQLITE_DONE)
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 3; i++)
                 prevvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
 
-            sqlite3_prepare_v2(ppDb, "select rowid, DT_INTER from aih where AIHREF = ? order by DT_INTER;", -1, &addstmt, nullptr);
+            sqlite3_prepare_v2(ppDb, "select rowid from aih where AIHREF = ? order by DT_INTER;", -1, &addstmt, nullptr);
             sqlite3_bind_text(addstmt, 1, (prevvalues[0].c_str()), prevvalues[0].length(), SQLITE_STATIC); // ORIGAIHREF
 
             while (sqlite3_step(addstmt) != SQLITE_DONE)
             {
                 currec = sqlite3_column_int(addstmt,0);
 
-                sqlite3_prepare_v2(ppDb, "update aih set AIHREF = ?, AIHREFANO = ?, FLAG = \"<xfer>\" where rowid = ?;",
+                sqlite3_prepare_v2(ppDb, "update aih set AIHREF = ?, FLAG = \"<xfer>\" where rowid = ?;",
                                     -1, &updstmt, nullptr);
                 sqlite3_bind_text(updstmt, 1, (prevvalues[1].c_str()), prevvalues[1].length(), SQLITE_STATIC); // AIHREF
-                sqlite3_bind_text(updstmt, 2, (prevvalues[2].c_str()), prevvalues[2].length(), SQLITE_STATIC); // AIHREFANO
-                sqlite3_bind_int(updstmt, 3, currec);
+                sqlite3_bind_int(updstmt, 2, currec);
                 sqlite3_step(updstmt);
                 sqlite3_finalize(updstmt);
                 cerr << ".";
@@ -496,7 +486,7 @@ void exportdata(sqlite3 *ppDb)
     output << "CNES,CEP,MUNIC_RES,"
               "NASC,DT_INTER,DT_SAIDA,"
               "COBRANCA,N_AIH,AIHREF,"
-              "AIHREFANO,FLAG,NORDEM";
+              "FLAG,NORDEM";
     output << endl;
 
     cerr << "Aguarde, reordenando..." << endl;
@@ -506,7 +496,7 @@ void exportdata(sqlite3 *ppDb)
     long recs = 0L;
 
     vector<string> prevvalues;
-    for (int i = 0; i < 11; i++)
+    for (int i = 0; i < 10; i++)
         prevvalues.push_back(string("----"));
 
     string aihref = prevvalues[8];
@@ -514,7 +504,7 @@ void exportdata(sqlite3 *ppDb)
 
     while (sqlite3_step(ppStmt) != SQLITE_DONE)
     {
-            for (int i = 0; i < 11; i++)
+            for (int i = 0; i < 10; i++)
                 prevvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
             if (aihref == "----")
                 aihref = prevvalues[8];
@@ -525,7 +515,7 @@ void exportdata(sqlite3 *ppDb)
                 aihref = prevvalues[8];
                 nordem = 1;
             }
-            for (int i = 0; i < 11; i++)
+            for (int i = 0; i < 10; i++)
                 output << "\"" << prevvalues[i] << "\",";
             output << '\"' << nordem << '\"' << endl;
             cerr << ++recs << '\r';
