@@ -68,6 +68,7 @@ for row in permtransf:
         cobranca = row[6]
         nordem += 1
         aihref = row[8]
+        rcep = row[1]
 else: # for the last sequence
     if cflag:
         for line in recs:
