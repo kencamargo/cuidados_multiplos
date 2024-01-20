@@ -4,12 +4,6 @@ from datetime import date
 con = sqlite3.connect('work.sqlite')
 cur = con.cursor()
 
-#print('Criando indice, aguarde.')
-#cur.execute('create index if not exists refaih on aihpermtransf(AIHREF);')
-#cur.execute('create index if not exists refaih on aihperm(AIHREF);')
-#permtransf = cur.execute('select * from aihpermtransf order by AIHREF;')
-#permtransf = cur.execute('select * from aihperm order by AIHREF;')
-
 permtransf = cur.execute('select * from aih order by AIHREF,DT_INTER;')
 
 cep = open('cep.csv', 'w')
