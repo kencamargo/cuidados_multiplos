@@ -15,7 +15,7 @@ permtransf = cur.execute('select * from aih order by AIHREF,DT_INTER;')
 cep = open('cep.csv', 'w')
 dtint = open('datedelta.csv', 'w')
 cep.writelines('CNES,CEP,MUNIC_RES,NASC,DT_INTER,DT_SAIDA,COBRANCA,N_AIH,AIHREF,FLAG,NORDEM\n')
-dtint.writelines('AIHREF,DIAS,COBRANCA\n')
+dtint.writelines('AIHREF,NRECS,DIAS,COBRANCA\n')
 
 def list2str(list):
     txt = ''
@@ -46,6 +46,7 @@ for row in permtransf:
         cobranca = row[6]
         cflag = False
         recs = []
+        recs.append(row)
         mindate = row[4].replace('"','')
         maxdate = row[5].replace('"','')
         nordem = 1
@@ -54,7 +55,7 @@ for row in permtransf:
             if cflag:
                 for line in recs:
                     cep.writelines(list2str(line))
-            dtint.writelines(aihref+','+datediff(mindate,maxdate)+','+cobranca+'\n')
+            dtint.writelines(aihref+','+str(len(recs))+','+datediff(mindate,maxdate)+','+cobranca+'\n')
             del recs
             recs = []
             cflag = False
@@ -77,7 +78,7 @@ else: # for the last sequence
     if cflag:
         for line in recs:
             cep.writelines(list2str(line))
-    dtint.writelines(aihref+','+datediff(mindate,maxdate)+','+cobranca+'\n')
+    dtint.writelines(aihref+','+str(len(recs))+','+datediff(mindate,maxdate)+','+cobranca+'\n')
 
 cep.close()
 dtint.close()
