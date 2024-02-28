@@ -6,15 +6,13 @@ cur = con.cursor()
 
 permtransf = cur.execute('select * from aih order by AIHREF,DT_INTER;')
 
-cep = open('cep.csv', 'w')
 dtint = open('datedelta.csv', 'w')
-cep.writelines('CNES,CEP,MUNIC_RES,NASC,DT_INTER,DT_SAIDA,COBRANCA,N_AIH,AIHREF,FLAG,NORDEM\n')
-dtint.writelines('AIHREF,NRECS,DIAS,COBRANCA\n')
+dtint.writelines('AIHREF,NRECS,DT_INI,DT_FIM,DIAS,COBRANCA\n')
 
 def list2str(list):
     txt = ''
     for i in range(len(list)):
-      txt += list[i].replace('"','') + ','
+      txt += list[i] + ','
     txt = txt[:-1] + '\n'
     return txt
 
@@ -27,7 +25,7 @@ def datediff(mindate, maxdate):
     diffstr = str(delta).split(' ')[0]
     if diffstr == '0:00:00':
     	diffstr = '0'
-    return diffstr
+    return str(int(diffstr)+1)
 
 aihref = ''
 nrecs = 0
@@ -36,45 +34,32 @@ for row in permtransf:
     print(nrecs, end = '\r')
     if aihref == '': # first
         aihref = row[8]
-        rcep = row[1]
+        mindate = row[4]
+        maxdate = row[5]
         cobranca = row[6]
-        cflag = False
-        recs = []
-        recs.append(row)
-        mindate = row[4].replace('"','')
-        maxdate = row[5].replace('"','')
         nordem = 1
     else:
         if aihref != row[8]:
-            if cflag:
-                for line in recs:
-                    cep.writelines(list2str(line))
-            dtint.writelines(aihref+','+str(len(recs))+','+datediff(mindate,maxdate)+','+cobranca+'\n')
-            del recs
-            recs = []
-            cflag = False
-            mindate = row[4].replace('"','')
-            maxdate = row[5].replace('"','')
+            dtint.writelines(aihref+','+str(nordem)+
+                ','+mindate+','+maxdate+
+                ','+datediff(mindate,maxdate)+
+                ','+cobranca+'\n')
+            mindate = row[4]
+            maxdate = row[5]
             cobranca = row[6]
             nordem = 1
-            rcep = row[1]
-        recs.append(row)
-        if not cflag and row[1] != rcep:
-            cflag = True
-        if row[4].replace('"','') < mindate:
-            mindate = row[4].replace('"','')
-        if row[5].replace('"','') > maxdate:
-            maxdate = row[5].replace('"','')
-        cobranca = row[6]
+        if row[4] < mindate:
+            mindate = row[4]
+        if row[5] > maxdate:
+            maxdate = row[5]
         nordem += 1
         aihref = row[8]
-        rcep = row[1]
+        cobranca = row[6]
 else: # for the last sequence
-    if cflag:
-        for line in recs:
-            cep.writelines(list2str(line))
-    dtint.writelines(aihref+','+str(len(recs))+','+datediff(mindate,maxdate)+','+cobranca+'\n')
+        dtint.writelines(aihref+','+str(nordem)+
+            ','+mindate+','+maxdate+
+            ','+datediff(mindate,maxdate)+
+            ','+cobranca+'\n')
 
-cep.close()
 dtint.close()
 con.close()
