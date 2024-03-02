@@ -108,14 +108,16 @@ bool loadtable(char * fname, sqlite3 *ppDb)
 
     const char *init_sql = "drop table if exists aih;"
                      "create table aih(CNES TEXT,CEP TEXT,MUNIC_RES TEXT,NASC TEXT,"
-                     "DT_INTER TEXT,DT_SAIDA TEXT,COBRANCA TEXT,N_AIH TEXT,AIHREF TEXT,FLAG TEXT);\n"
-                     "drop index if exists orderperm;"
+                     "DT_INTER TEXT,DT_SAIDA TEXT,COBRANCA TEXT,N_AIH TEXT,AIHREF TEXT,FLAG TEXT,"
+                     "DIAG_PRINC TEXT,PROC_REA TEXT,US_TOT TEXT,UTI_MES_TO TEXT,"
+                     "alta TEXT,criterio_primario TEXT);\n"
+                     "drop index if exists orderperm;\n"
                      "create index orderperm on aih(CNES,MUNIC_RES,NASC,DT_INTER);\n"
-                     "drop index if exists ordertransf;"
+                     "drop index if exists ordertransf;\n"
                      "create index ordertransf on aih(CEP,MUNIC_RES,NASC,DT_INTER);\n;"
-                     "drop index if exists orderxport;"
-                     "create index orderxport on aih(AIHREF,DT_INTER);"
-                     "drop index if exists refaih;"
+                     "drop index if exists orderxport;\n"
+                     "create index orderxport on aih(AIHREF,DT_INTER);\n"
+                     "drop index if exists refaih;\n"
                      "create index refaih on aih(AIHREF);";
 
     sqlite3_stmt *ppStmt;
@@ -140,22 +142,32 @@ bool loadtable(char * fname, sqlite3 *ppDb)
         vector<string> filefldnames = split_string(line_in,";");
 
         vector<string> fldnames = split_string("CNES,CEP,MUNIC_RES,NASC,DT_INTER,DT_SAIDA,"
-                                               "COBRANCA,N_AIH,AIHREF,FLAG",",");
+                                               "COBRANCA,N_AIH,AIHREF,FLAG,"
+                                               "DIAG_PRINC,PROC_REA,US_TOT,UTI_MES_TO,"
+                                               "alta,criterio_primario",",");
+
+        int Nflds = fldnames.size();
 
         const char *add_data = "insert into aih"
                         "("
-                        "CNES,"
-                        "CEP,"
-                        "MUNIC_RES,"
-                        "NASC,"
-                        "DT_INTER,"
-                        "DT_SAIDA,"
-                        "COBRANCA,"
-                        "N_AIH,"
-                        "AIHREF,"
-                        "FLAG"
+                        "CNES," // 0
+                        "CEP," // 1
+                        "MUNIC_RES," // 2
+                        "NASC," // 3
+                        "DT_INTER," // 4
+                        "DT_SAIDA," // 5
+                        "COBRANCA,"  // 6
+                        "N_AIH,"  // 7
+                        "AIHREF," // 8
+                        "FLAG,"  // 9
+                        "DIAG_PRINC," // 10
+                        "PROC_REA," // 11
+                        "US_TOT," // 12
+                        "UTI_MES_TO," // 13
+                        "alta," // 14
+                        "criterio_primario" // 15
                         ") "
-                        "values(?, ?, ?, ?, ?, ?, ?, ?, ?, \"<init>\");";
+                        "values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
         long recs = 0L;
 
@@ -164,8 +176,11 @@ bool loadtable(char * fname, sqlite3 *ppDb)
         cerr << "Iniciando carga dos dados." << endl;
 
         vector<string> fdata;
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < Nflds; i++)
+            if (i != 9)
                 fdata.push_back(string("----"));
+            else
+                fdata.push_back(string("<init>"));
 
         while (getline(infile,line_in))
         {
@@ -186,7 +201,7 @@ bool loadtable(char * fname, sqlite3 *ppDb)
             string fdname;
 
 
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < Nflds; i++)
             {
                 fdname = fldnames[i];
                 fldnum = findpos(fdname,filefldnames);
@@ -499,7 +514,10 @@ void exportdata(sqlite3 *ppDb)
     output << "CNES,CEP,MUNIC_RES,"
               "NASC,DT_INTER,DT_SAIDA,"
               "COBRANCA,N_AIH,AIHREF,"
-              "FLAG,NORDEM";
+              "FLAG,"
+              "DIAG_PRINC,PROC_REA,US_TOT,UTI_MES_TO,"
+              "alta,criterio_primario"
+              "NORDEM";
     output << endl;
 
     cerr << "Aguarde, reordenando..." << endl;
@@ -509,7 +527,7 @@ void exportdata(sqlite3 *ppDb)
     long recs = 0L;
 
     vector<string> prevvalues;
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 16; i++)
         prevvalues.push_back(string("----"));
 
     string aihref = prevvalues[8];
@@ -517,7 +535,7 @@ void exportdata(sqlite3 *ppDb)
 
     while (sqlite3_step(ppStmt) != SQLITE_DONE)
     {
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 16; i++)
                 prevvalues[i] = string(reinterpret_cast<const char *>(sqlite3_column_text(ppStmt, i)));
             if (aihref == "----")
                 aihref = prevvalues[8];
@@ -528,7 +546,7 @@ void exportdata(sqlite3 *ppDb)
                 aihref = prevvalues[8];
                 nordem = 1;
             }
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 16; i++)
                 output << prevvalues[i] << ',';
             output << nordem << endl;
             cerr << ++recs << '\r';
